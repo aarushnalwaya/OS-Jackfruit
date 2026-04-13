@@ -1,4 +1,9 @@
 obj-m += monitor.o
+ccflags-y += -Wno-unused-function
+
+KDIR := /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
+obj-m += monitor.o
 
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
@@ -17,7 +22,7 @@ ci: $(USER_TARGETS)
 module: monitor.ko
 
 engine: engine.c monitor_ioctl.h
-	gcc -O2 -Wall -Wextra -o engine engine.c -lpthread
+	gcc -O2 -Wall -Wextra -Wno-unused-function -Wno-format-truncation -Wno-stringop-truncation -Wno-unused-result -o engine engine.c -lpthread
 
 memory_hog: memory_hog.c
 	gcc -O2 -Wall $(WORKLOAD_LDFLAGS) -o memory_hog memory_hog.c
