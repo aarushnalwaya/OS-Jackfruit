@@ -78,6 +78,7 @@ tail -1 /tmp/container_logs/cpu-lo.log
 ### Teardown
 ```bash
 # Press Ctrl+C in Terminal 1 to stop supervisor
+sudo pkill -9 engine
 sudo rmmod monitor
 sudo dmesg | tail -3
 ```
