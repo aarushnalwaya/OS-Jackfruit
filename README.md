@@ -149,7 +149,6 @@ detected RSS=8,986,624 bytes exceeding the soft limit of 5,242,880 bytes and
 emitted a `SOFT LIMIT` warning via `printk`.
 
 ![Screenshot 5](screenshots/5.webp)
-)
 
 ```bash
 # Stop alpha first
