@@ -93,10 +93,26 @@ Two containers (alpha and beta) launched concurrently under a single supervisor 
 
 ![Screenshot 1](screenshots/1.webp)
 
+Terminal-1
+```bash
+sudo ./engine supervisor ~/OS-Jackfruit/rootfs-base
+```
+Terminal-2
+```bash
+cd ~/OS-Jackfruit/boilerplate
+sudo ./engine start alpha ~/OS-Jackfruit/rootfs-alpha "/cpu_hog 60" --soft-mib 40 --hard-mib 64
+sudo ./engine start beta  ~/OS-Jackfruit/rootfs-beta  "/cpu_hog 60" --soft-mib 40 --hard-mib 64
+sudo ./engine ps
+```
+
 ### Screenshot 2 — Metadata Tracking
 Output of `engine ps` showing both containers tracked with state and PID metadata.
 
 ![Screenshot 2](screenshots/2.webp)
+
+```bash
+sudo ./engine ps
+```
 
 ### Screenshot 3 — Bounded-Buffer Logging
 Log file contents from `alpha.log` and `beta.log` captured through the
@@ -106,6 +122,13 @@ logging consumer thread.
 
 ![Screenshot 3](screenshots/3.webp)
 
+```bash
+# Wait 10 seconds for logs to fill
+sleep 10
+cat /tmp/container_logs/alpha.log | head -10
+cat /tmp/container_logs/beta.log  | head -10
+```
+
 ### Screenshot 4 — CLI and IPC
 `engine stop beta` sends a control request over the UNIX domain socket to the
 supervisor, which responds with confirmation. `engine logs alpha` returns the
@@ -113,6 +136,12 @@ log file path. The supervisor updates container state (`beta stopped`,
 `alpha exited`) and responds over the same socket.
 
 ![Screenshot 4](screenshots/4.webp)
+
+```bash
+sudo ./engine stop beta
+sudo ./engine ps
+sudo ./engine logs alpha
+```
 
 ### Screenshot 5 — Soft-Limit Warning
 `hogtest` container registered with soft=5MiB, hard=20MiB. The kernel module
@@ -122,6 +151,19 @@ emitted a `SOFT LIMIT` warning via `printk`.
 ![Screenshot 5](screenshots/5.webp)
 )
 
+```bash
+# Stop alpha first
+sudo ./engine stop alpha
+
+# Start memory hog with tight limits
+sudo ./engine start hogtest ~/OS-Jackfruit/rootfs-alpha "/memory_hog 8 500" \
+    --soft-mib 5 --hard-mib 20
+
+# Watch dmesg
+sleep 3
+sudo dmesg | grep -E "SOFT|HARD|hogtest" | tail -10
+```
+
 ### Screenshot 6 — Hard-Limit Enforcement
 RSS grew to 25,763,840 bytes, exceeding the hard limit of 20,971,520 bytes.
 The kernel module sent `SIGKILL` to the process. `engine ps` shows
@@ -129,6 +171,13 @@ The kernel module sent `SIGKILL` to the process. `engine ps` shows
 via `SIGCHLD`.
 
 ![Screenshot 6](screenshots/6.webp)
+
+```bash
+# Wait for hard limit to trigger
+sleep 5
+sudo dmesg | grep -E "SOFT|HARD|hogtest" | tail -10
+sudo ./engine ps
+```
 
 ### Screenshot 7 — Scheduling Experiment
 Two `cpu_hog` containers ran for 20 seconds with different nice values.
@@ -140,6 +189,16 @@ CPU time to the higher-priority process.
 
 ![Screenshot 7](screenshots/7.webp)
 
+```bash
+sudo ./engine start cpu-hi ~/OS-Jackfruit/rootfs-alpha "/cpu_hog 20" --nice -10
+sudo ./engine start cpu-lo ~/OS-Jackfruit/rootfs-beta  "/cpu_hog 20" --nice 10
+sleep 22
+echo "=== Nice -10 (high priority) final line ==="
+tail -1 /tmp/container_logs/cpu-hi.log
+echo "=== Nice +10 (low priority) final line ==="
+tail -1 /tmp/container_logs/cpu-lo.log
+```
+
 ### Screenshot 8 — Clean Teardown
 After supervisor shutdown (Ctrl+C), the UNIX socket is removed, no orphan
 `cpu_hog` or `memory_hog` processes remain, and the kernel module unloads
@@ -147,6 +206,32 @@ cleanly with `[container_monitor] Module unloaded.`
 
 ![Screenshot 8](screenshots/8.webp)
 
+Terminal-2
+```bash
+sudo ./engine stop cpu-hi 2>/dev/null; true
+sudo ./engine stop cpu-lo 2>/dev/null; true
+sudo ./engine ps
+
+# Check no zombies
+ps aux | grep -E '\bZ\b' | grep -v grep
+
+echo "--- Stopping supervisor ---"
+```
+Terminal 1: Press Ctrl+C
+
+Terminal 2:
+```bash
+# Verify socket cleaned up
+ls /tmp/mini_runtime.sock 2>/dev/null && echo "STALE" || echo "Socket cleaned up OK"
+
+# Verify no orphan processes
+ps aux | grep cpu_hog | grep -v grep
+ps aux | grep memory_hog | grep -v grep
+
+# Unload module cleanly
+sudo rmmod monitor
+sudo dmesg | tail -3
+```
 ---
 
 ## 3. Engineering Analysis
