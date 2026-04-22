@@ -369,7 +369,7 @@ and drop capabilities after exec.
 **Tradeoff:** `CMD_RUN` blocks the entire event loop while waiting for the
 container to exit, meaning no other commands can be processed during that time.
 **Justification:** This is acceptable for the project scope. A production
-system would use a thread pool or non-blocking I/O to handle concurrent
+system would use a thread pool or non-blocking I/O to handle concurrentt
 requests, but the added complexity is not warranted here.
 
 ### IPC and Logging
